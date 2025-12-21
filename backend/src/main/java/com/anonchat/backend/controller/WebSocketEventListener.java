@@ -9,25 +9,37 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+import java.util.Map;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class WebSocketEventListener {
+
     private final SimpMessageSendingOperations messagingTemplate;
 
     @EventListener
-    public void handleWebSocketDisconnectListner(SessionDisconnectEvent event) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        String username = accessor.getSessionAttributes().get("username").toString();
+    public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
+        StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        if(username != null){
-            log.info("User Disconnected: {}", username);
+        Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
+        if (sessionAttributes == null) {
+            log.warn("Disconnection event received, but session attributes are missing.");
+            return;
+        }
+        String username = (String) sessionAttributes.get("username");
+        String roomId = (String) sessionAttributes.get("roomId");
+
+        if (username != null && roomId != null) {
+            log.info("User Disconnected: {} from Room: {}", username, roomId);
+
             var chatMessage = ChatMessage.builder()
                     .type(ChatMessage.MessageType.LEAVE)
                     .sender(username)
+                    .content("left the chat")
                     .build();
 
-            messagingTemplate.convertAndSend("/topic/leave", chatMessage);
+            messagingTemplate.convertAndSend("/topic/" + roomId, chatMessage);
         }
     }
 }

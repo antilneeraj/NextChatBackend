@@ -1,64 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AnonChat Test</title>
+    <title>AnonChat Rooms</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 </head>
 <body>
-    <h2>AnonChat Smoke Test</h2>
-    <div id="status">Status: Disconnected</div>
-    <br/>
-    <input type="text" id="message" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+<h2>AnonChat Multi-Room</h2>
 
-    <h3>Messages:</h3>
-    <ul id="messageArea"></ul>
+<div>
+    <label>Room ID:</label>
+    <input type="text" id="roomId" value="java-room">
+    <label>Username:</label>
+    <input type="text" id="username" value="User1">
+    <button onclick="connect()">Join Room</button>
+</div>
+<hr/>
 
-    <script>
-        var stompClient = null;
+<div id="status">Status: Disconnected</div>
+<br/>
+<input type="text" id="message" placeholder="Type a message...">
+<button onclick="sendMessage()">Send</button>
 
-        // 1. Connect automatically when page loads
-        function connect() {
-            var socket = new SockJS('/ws'); // Matches our Config
-            stompClient = Stomp.over(socket);
+<h3>Messages:</h3>
+<ul id="messageArea"></ul>
 
-            stompClient.connect({}, function (frame) {
-                document.getElementById('status').innerText = 'Status: Connected';
-                console.log('Connected: ' + frame);
+<script>
+    var stompClient = null;
+    var currentRoomId = null;
 
-                // 2. Subscribe to the Public Topic
-                stompClient.subscribe('/topic/public', function (message) {
-                    showMessage(JSON.parse(message.body));
-                });
+    function connect() {
+        var roomId = document.getElementById('roomId').value;
+        var username = document.getElementById('username').value;
+        currentRoomId = roomId;
 
-                // 3. Tell the server we joined
-                stompClient.send("/app/chat.addUser", {}, JSON.stringify({sender: "TestUser", type: 'JOIN'}));
+        var socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            document.getElementById('status').innerText = 'Status: Connected to ' + roomId;
+
+            // Subscribe to the specific Room Topic
+            stompClient.subscribe('/topic/' + roomId, function (message) {
+                showMessage(JSON.parse(message.body));
             });
+
+            // Tell the server we joined
+            stompClient.send("/app/chat/" + roomId + "/addUser",
+                {},
+                JSON.stringify({sender: username, type: 'JOIN'})
+            );
+        });
+    }
+
+    function sendMessage() {
+        var messageContent = document.getElementById('message').value;
+        var username = document.getElementById('username').value;
+
+        if (messageContent && stompClient) {
+            var chatMessage = {
+                sender: username,
+                content: messageContent,
+                type: 'CHAT'
+            };
+            // Send to specific room
+            stompClient.send("/app/chat/" + currentRoomId + "/sendMessage", {}, JSON.stringify(chatMessage));
+            document.getElementById('message').value = '';
+        }
+    }
+
+    function showMessage(message) {
+        var messageArea = document.getElementById('messageArea');
+        var li = document.createElement('li');
+
+        if (message.type === 'JOIN') {
+            li.classList.add('event-message');
+            li.style.color = '#888';
+            li.textContent = message.sender + " joined the room.";
+        } else if (message.type === 'LEAVE') {
+            li.classList.add('event-message');
+            li.style.color = '#ff4444';
+            li.textContent = message.sender + " left the room.";
+        } else {
+            li.style.color = '#000';
+            li.textContent = message.sender + ": " + message.content;
         }
 
-        // 4. Send a Chat Message
-        function sendMessage() {
-            var messageContent = document.getElementById('message').value;
-            if (messageContent && stompClient) {
-                var chatMessage = {
-                    sender: "TestUser",
-                    content: messageContent,
-                    type: 'CHAT'
-                };
-                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
-                document.getElementById('message').value = '';
-            }
-        }
-
-        function showMessage(message) {
-            var messageArea = document.getElementById('messageArea');
-            var li = document.createElement('li');
-            li.appendChild(document.createTextNode(message.sender + ": " + message.content));
-            messageArea.appendChild(li);
-        }
-
-        connect(); // Start connection immediately
-    </script>
+        messageArea.appendChild(li);
+    }
+</script>
 </body>
 </html>

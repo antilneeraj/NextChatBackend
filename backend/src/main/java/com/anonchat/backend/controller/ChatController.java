@@ -1,6 +1,8 @@
 package com.anonchat.backend.controller;
 
 import com.anonchat.backend.model.ChatMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -10,18 +12,25 @@ import org.springframework.stereotype.Controller;
 @Controller
 public class ChatController {
 
-    @MessageMapping("/chat.sendMessage")
-    @SendTo("/topic/public")
-    public ChatMessage sendMessage(@Payload ChatMessage chatMessage) {
+    // Handling Chat Messages
+    @MessageMapping("/chat/{roomId}/sendMessage")
+    @SendTo("/topic/{roomId}")
+    public ChatMessage sendMessage(@DestinationVariable String roomId,
+                                   @Payload ChatMessage chatMessage) {
         return chatMessage;
     }
 
-    @MessageMapping("/chat.addUser")
-    @SendTo("/topic/public")
-    public ChatMessage addUser(@Payload ChatMessage chatMessage,
+    // Handling Join Events
+    @MessageMapping("/chat/{roomId}/addUser")
+    @SendTo("/topic/{roomId}")
+    public ChatMessage addUser(@DestinationVariable String roomId,
+                               @Payload ChatMessage chatMessage,
                                SimpMessageHeaderAccessor headerAccessor) {
-        // Add username in web socket session so we can retrieve it if they disconnect
+
+        // Adding username AND roomId in web socket session
         headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
+        headerAccessor.getSessionAttributes().put("roomId", roomId);
+
         return chatMessage;
     }
 }
