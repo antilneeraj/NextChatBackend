@@ -28,6 +28,8 @@ public class ChatController {
     public ChatMessage sendMessage(@DestinationVariable String roomId,
                                    @Payload ChatMessage chatMessage,
                                    SimpMessageHeaderAccessor headerAccessor) {
+        validateRoomId(roomId);
+
         String sessionId = headerAccessor.getSessionId();
 
         if (rateLimitService.isRateLimited(sessionId)) {
@@ -54,9 +56,17 @@ public class ChatController {
     public ChatMessage addUser(@DestinationVariable String roomId,
                                @Payload ChatMessage chatMessage,
                                SimpMessageHeaderAccessor headerAccessor) {
-        // Sanitize username too! (Prevent people from joining as "Idiot")
-        String cleanSender = filterService.sanitize(chatMessage.getSender());
-        chatMessage.setSender(cleanSender);
+        validateRoomId(roomId);
+
+        String username = chatMessage.getSender();
+        if (!filterService.isValidUsername(username)) {
+            // Force rename to something harmless
+            String safeName = "Guest_" + System.currentTimeMillis() % 10000;
+            chatMessage.setSender(safeName);
+        } else {
+            String cleanSender = filterService.sanitize(username);
+            chatMessage.setSender(cleanSender);
+        }
 
         chatMessage.setType(ChatMessage.MessageType.JOIN);
 
@@ -73,5 +83,12 @@ public class ChatController {
         chatService.saveMessage(roomId, chatMessage);
 
         return chatMessage;
+    }
+
+    private void validateRoomId(String roomId) {
+        // Only allow Alphanumeric, underscores, and hyphens (e.g., "room-1", "MyChat_2")
+        if (!roomId.matches("^[a-zA-Z0-9_-]+$")) {
+            throw new IllegalArgumentException("Invalid Room ID. Only letters, numbers, and dashes allowed.");
+        }
     }
 }
