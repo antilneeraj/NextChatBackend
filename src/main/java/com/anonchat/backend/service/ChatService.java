@@ -34,15 +34,20 @@ public class ChatService {
     }
 
     public void deleteRoom(String roomId) {
-        // Delete the Message History
-        redisTemplate.delete("room:" + roomId);
+        redisTemplate.opsForValue().set("room:" + roomId + ":deleting", "true", java.time.Duration.ofSeconds(3));
 
-        // Delete the Owner Key too!
-        // This allows the next person who joins to claim ownership.
+        redisTemplate.delete("room:" + roomId);
         redisTemplate.delete("room:" + roomId + ":owner");
+        redisTemplate.delete("room:" + roomId + ":count");
+    }
+
+    public boolean isRoomBeingDeleted(String roomId) {
+        return redisTemplate.hasKey("room:" + roomId + ":deleting");
     }
 
     public String attemptToClaimRoom(String roomId) {
+        if (isRoomBeingDeleted(roomId)) return null;
+
         String key = "room:" + roomId + ":owner";
         String token = java.util.UUID.randomUUID().toString();
 

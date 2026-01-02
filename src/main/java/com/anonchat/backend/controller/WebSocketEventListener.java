@@ -32,6 +32,9 @@ public class WebSocketEventListener {
         String username = (String) sessionAttributes.get("username");
         String roomId = (String) sessionAttributes.get("roomId");
 
+        if (chatService.isRoomBeingDeleted(roomId))
+            return; // Exit silently. No "Ghost History"
+
         if (username != null && roomId != null) {
             log.info("User Disconnected: {} from Room: {}", username, roomId);
 

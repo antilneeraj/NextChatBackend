@@ -320,6 +320,9 @@
         var li = document.createElement('li');
 
         if (message.sender === "System" && message.content.includes("Room has been deleted")) {
+            if (ownerToken)
+                return;
+
             alert("⚠️ The room was deleted by the owner.");
             location.reload(); // Refresh the page to clear everything for everyone
             return; // Stop processing
