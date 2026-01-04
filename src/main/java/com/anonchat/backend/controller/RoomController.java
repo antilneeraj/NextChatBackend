@@ -2,7 +2,9 @@ package com.anonchat.backend.controller;
 
 import com.anonchat.backend.model.ChatMessage;
 import com.anonchat.backend.service.ChatService;
+import com.anonchat.backend.service.RoomService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
@@ -17,6 +19,38 @@ public class RoomController {
 
     private final ChatService chatService;
     private final SimpMessageSendingOperations messagingTemplate;
+
+    @Autowired
+    private RoomService roomService;
+
+    // DTO class for the request
+    public static class CreateRoomRequest {
+        public String roomName;
+        public String username;
+    }
+
+    @PostMapping("/create")
+    public ResponseEntity<Map<String, String>> createRoom(@RequestBody CreateRoomRequest request) {
+        // Generate ID and Save Name
+        String roomId = roomService.createRoom(request.roomName);
+
+        // Return the details needed for Frontend
+        return ResponseEntity.ok(Map.of(
+                "roomId", roomId,
+                "roomName", request.roomName,
+                "inviteLink", "http://localhost:3000/?room=" + roomId
+        ));
+    }
+
+    // Get Room Info (For friends clicking the link)
+    @GetMapping("/{roomId}/info")
+    public ResponseEntity<Map<String, String>> getRoomInfo(@PathVariable String roomId) {
+        String name = roomService.getRoomName(roomId);
+        return ResponseEntity.ok(Map.of(
+                "roomId", roomId,
+                "roomName", name
+        ));
+    }
 
     // Claim Ownership (Called automatically when joining)
     @PostMapping("/{roomId}/claim")
