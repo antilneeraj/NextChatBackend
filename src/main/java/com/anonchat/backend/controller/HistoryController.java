@@ -2,7 +2,7 @@ package com.anonchat.backend.controller;
 
 import com.anonchat.backend.service.ChatService;
 import com.anonchat.backend.service.PdfService;
-import lombok.NonNull;
+import com.anonchat.backend.util.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -26,11 +26,15 @@ public class HistoryController {
     // History API
     @GetMapping("/api/history/{roomId}")
     public ResponseEntity<List<Object>> getChatHistory(@PathVariable String roomId) {
+        ValidationUtils.validateRoomId(roomId);
+
         return ResponseEntity.ok(chatService.getHistory(roomId));
     }
 
     @DeleteMapping("/api/history/{roomId}")
     public ResponseEntity<String> deleteRoomHistory(@PathVariable String roomId) {
+        ValidationUtils.validateRoomId(roomId);
+
         chatService.deleteRoom(roomId);
         return ResponseEntity.ok("Room history deleted successfully.");
     }
@@ -38,6 +42,8 @@ public class HistoryController {
     // PDF Export API
     @GetMapping("/api/export/{roomId}")
     public ResponseEntity<InputStreamResource> exportPdf(@PathVariable String roomId) {
+        ValidationUtils.validateRoomId(roomId);
+
         // Get the data
         List<Object> history = chatService.getHistory(roomId);
 

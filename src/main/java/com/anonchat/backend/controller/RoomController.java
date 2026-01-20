@@ -1,8 +1,10 @@
 package com.anonchat.backend.controller;
 
+import com.anonchat.backend.exceptions.UnauthorizedException;
 import com.anonchat.backend.model.ChatMessage;
 import com.anonchat.backend.service.ChatService;
 import com.anonchat.backend.service.RoomService;
+import com.anonchat.backend.util.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,8 @@ public class RoomController {
     @Autowired
     private RoomService roomService;
 
+    private final int MAX_ROOM_NAME_LENGTH = 40;
+
     // DTO class for the request
     public static class CreateRoomRequest {
         public String roomName;
@@ -31,6 +35,10 @@ public class RoomController {
 
     @PostMapping("/create")
     public ResponseEntity<Map<String, String>> createRoom(@RequestBody CreateRoomRequest request) {
+        if (request.roomName == null || request.roomName.length() > MAX_ROOM_NAME_LENGTH) {
+            throw new IllegalArgumentException("Room name is required and must not exceed 40 characters.");
+        }
+
         // Generate ID and Save Name
         String roomId = roomService.createRoom(request.roomName);
 
@@ -45,6 +53,8 @@ public class RoomController {
     // Get Room Info (For friends clicking the link)
     @GetMapping("/{roomId}/info")
     public ResponseEntity<Map<String, String>> getRoomInfo(@PathVariable String roomId) {
+        ValidationUtils.validateRoomId(roomId);
+
         String name = roomService.getRoomName(roomId);
         return ResponseEntity.ok(Map.of(
                 "roomId", roomId,
@@ -55,6 +65,8 @@ public class RoomController {
     // Claim Ownership (Called automatically when joining)
     @PostMapping("/{roomId}/claim")
     public ResponseEntity<Map<String, String>> claimRoom(@PathVariable String roomId) {
+        ValidationUtils.validateRoomId(roomId);
+
         String token = chatService.attemptToClaimRoom(roomId);
 
         if (token != null) {
@@ -68,9 +80,11 @@ public class RoomController {
     @DeleteMapping("/{roomId}")
     public ResponseEntity<String> deleteRoom(@PathVariable String roomId,
                                              @RequestHeader("X-Owner-Token") String token) {
+        ValidationUtils.validateRoomId(roomId);
+
         // Security Check
         if (!chatService.verifyOwner(roomId, token))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("🚫 Access Denied: You are not the owner.");
+            throw new UnauthorizedException("🚫 Access Denied: You are not the owner of this room.");
 
         chatService.deleteRoom(roomId);
 

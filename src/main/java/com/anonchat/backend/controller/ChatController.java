@@ -4,6 +4,7 @@ import com.anonchat.backend.model.ChatMessage;
 import com.anonchat.backend.service.ChatService;
 import com.anonchat.backend.service.RateLimitService;
 import com.anonchat.backend.service.FilterService;
+import com.anonchat.backend.util.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -87,8 +88,6 @@ public class ChatController {
 
     private void validateRoomId(String roomId) {
         // Only allow Alphanumeric, underscores, and hyphens (e.g., "room-1", "MyChat_2")
-        if (!roomId.matches("^[a-zA-Z0-9_-]+$")) {
-            throw new IllegalArgumentException("Invalid Room ID. Only letters, numbers, and dashes allowed.");
-        }
+        ValidationUtils.validateRoomId(roomId);
     }
 }
